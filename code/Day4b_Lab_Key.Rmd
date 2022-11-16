@@ -1,0 +1,83 @@
+---
+title: "Class 4 RMarkdown Lab"
+output: pdf_document
+date: "07 Sept 2022"
+author: Amy Winter
+---
+
+# R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+The way you can create a file like this in RStudio is: File → New File → R Markdown and then using the default or using a template.
+
+## You can use hashtags to create headers.  The more hastage the more indented the header
+
+Below is a code chunk that will set up our packages and data. 
+```{r}
+library(readxl)
+dtp <- read_excel("../data/DTP_Coverage_WHO.xlsx", sheet="Data")
+head(dtp, n=5)
+```
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. 
+
+## Exercise 1
+
+Create a chunk of code below that loads the tidyverse package (hint: use library function), but change the options so that I don't see the output of the loaded package.
+
+```{r include=FALSE}
+library(tidyverse)
+```
+
+## Exercise 2
+
+Create a code chunk below that creates a new data frame called `dtp1.nig.df` that only includes data from Nigeria (hint: NAME is "Nigeria") and DTP containing vaccine dose 1 (hint: ANTIGEN is "DTPCV1") and only WUENIC estimates (hint: COVERAGE_CATEGORY is "WUENIC"). Output the number of rows of data are in this new data frame, `dtp1.nig.df`?
+
+```{r}
+dtp1.nig.df <- dtp %>%
+  filter(NAME=="Nigeria" & ANTIGEN=="DTPCV1" & COVERAGE_CATEGORY=="WUENIC")
+nrow(dtp1.nig.df)
+```
+
+## Exercise 3 
+
+Create a code chunk below that modifies the data frame such that it only induces the following variables: NAME, YEAR, ANTIGEN, COVERAGE_CATEGORY, COVERAGE. Output the first 8 rows of this data frame. Output the number of columns in this modified data frame
+
+```{r}
+dtp1.nig.df <- dtp1.nig.df %>%
+  select(NAME, YEAR, ANTIGEN, COVERAGE_CATEGORY, COVERAGE)
+ncol(dtp1.nig.df)
+```
+ 
+
+## Exercise 4
+
+Create a code chunk below that outputs the mean dtp dose 1 coverage from Nigeria across all years.
+
+```{r}
+mean(dtp1.nig.df$COVERAGE)
+dtp1.nig.df %>% select(COVERAGE) %>% summary()
+dtp1.nig.df %>% summarise(mean(COVERAGE))
+```
+
+## Exercise 5
+
+Use the code chunk below to plot DTP coverage over time. Basically you just need to fill in the variable names for `x=` and `y=`.  Below the code chunk interpret the plot for me. 
+
+```{r}
+ggplot(data = dtp1.nig.df) + geom_line(aes(x=YEAR, y=COVERAGE)) + 
+  labs(title = "Nigeria DTP1 Coverage, WUENIC Estimates")
+```
+
+Explanation of plot here...
+
+## Exercise 6
+
+install.packages("tinytex")
+library(tinytex)
+install_tinytex()
+
+Knit this file. Save the .pdf in output subdirectory of you RProject as "Day4_Lab_RMarkdown.pdf"
+
+

@@ -1,0 +1,244 @@
+---
+title: "Homework #1"
+author: "Gbemisola Talabi"
+output: pdf_document
+date: "16 September 2022"
+---
+
+### **Instructions**
+
+1. Please submit your knitted `.pdf` file to the assignment drop box on eLC. If you are still having trouble knitting your file you can submit your `.Rmd` file.
+
+2. All assignments are due by September 20, 2022 by 7:00pm EST. This assignment will be graded for accuracy. Please reach out to us if you need help before this time! 
+
+3. Please add your name as "author" to the YAML header above.
+
+4. Below each question is a `r` code chunk that can be used to explore the question. Use the space below the code chunk to directly answer the question.
+
+```{r initiatePackages, message=FALSE}
+## you can add more, or change...these are suggestions
+library(tidyverse)
+library(readr)
+library(dplyr)
+```
+
+### **Problem Set**
+
+1\. (a) Make an object "age". Assign it your age in years. (b) Make another object "name". Assign it your name. Make sure to use quotation marks for anything with text!
+
+```{r}
+age <- 24
+name <- "Gbemisola Talabi"
+```
+
+2\. Make an object "me" that is "age" and "name" combined.
+
+```{r}
+me <- c(age, name)
+```
+
+3\. Determine the data class for "me".
+
+```{r}
+class(me)
+```
+
+4\. If I want to do `me / 2` I get the following error: `Error in me/2 : non-numeric argument to binary operator`. Why? Write your answer as a comment inside the R chunk below.
+
+```{r}
+# because me is a character, it is not numeric 
+```
+
+**The following questions involve an outside dataset.** 
+
+We will be working with a dataset from the "Kaggle" website, which hosts competitions for prediction and machine learning. More details on this dataset are here: https://www.kaggle.com/c/DontGetKicked/overview/background.
+
+5\. Import the dataset into R. The dataset is located on eLC, "kaggleCarAuction.csv" Once you get the file, read the dataset in using `read_csv()` and assign it the name "cars".
+
+```{r}
+cars <- read_csv("../data/kaggleCarAuction.csv")
+```
+
+6\. Download the data dictionary from eLC, "Carvana_Data_Dictionary.txt" Open the file and determine the deliminator. Use the `read_delim()` function to import the file into R and assign it the name "key".  
+
+```{r}
+key <- read_delim("../data/Carvana_Data_Dictionary.txt", delim=";")
+
+```
+
+7\. R can save individual variables as `.rds` files that can be imported again later. Save the "cars" data in an .rds file using the `write_rds()` function. You can choose what the `file=` argument is.
+
+```{r}
+write_rds(cars, file ="my_cars.rds")
+```
+
+8\. You should now be ready to work with the "cars" dataset.
+
+(a) Preview the data so that you can see the names of the columns. There are several possible functions to do this.
+(b) What is the class (data type) of the first three columns using `spec()` or `glimpse()`. 
+
+```{r}
+colnames(cars)
+spec(cars)
+# RefId = col_double()
+# IsBadBuy = col_double()
+# PurchDate = col_character()
+```
+
+9\. How many cars (rows) are in the dataset? How many variables (columns) are recorded for each car? 
+
+```{r}
+dim(cars)
+```
+
+10\. Let's reduce the number of variables in the dataset to only those that will be used for the remainder of the exercises in order to make it slightly easier to work with. Keep the following variables (Model, Make, Color, VehOdo, VehicleAge, VehYear, VehBCost, Transmission) and reassign the new dataset to "cars". How many variables (columns) are left for each car?
+
+```{r}
+cars <- select(cars, c(Model, Make, Color, VehOdo, VehicleAge, VehYear, VehBCost, Transmission))
+ncol(cars)
+```
+
+
+11\. Remove any vehicles that at the time of purchase cost less than or equal to $5000. To do this first identify the variable using "key" that represents the acquisition cost paid for the vehicle at time of purchase, then filter based on this variable. Reassign the new filtered dataset to "cars". How many vehicles are left after filtering?
+
+```{r}
+key
+cars <- filter(cars, VehBCost > 5000)
+glimpse(cars)
+nrow(cars)
+```
+
+12\. From this point on, work with the filtered "cars" dataset from the above question. Given the average car loan today is 70 months, create a new variable (column) called "MonthlyPrice" that shows the monthly cost for each car. Check to make sure the new column is there.
+
+- Divide "VehBCost" by 70
+- use the `mutate()` function
+
+```{r}
+cars
+cars <- cars %>% 
+mutate(Monthlyprice = VehBCost/70)
+colnames(cars)
+```
+
+13\. What is the range of the manufacture year of the vehicles?
+
+```{r}
+range(cars$VehYear)
+```
+
+14\. How many cars were from before 2004? What percent/proportion of all cars do these represent?
+
+- use`filter()` and `nrow()` or
+- `group_by()` and `summarize()` or
+- `sum()`
+
+```{r}
+sum(cars$VehYear < 2004)
+```
+
+15\. How many different vehicle manufacturers are there?
+
+- use `length()` with `unique()` or `table()`. Remember to `pull()` the right column.
+
+```{r}
+length(table(cars$Make))
+```
+
+16\. How many different vehicle models are there?
+
+```{r}
+length(table(cars$Model))
+```
+
+17\. Which vehicle color group had the highest mean acquisition cost paid for the vehicle at time of purchase, and what was this cost? 
+
+- use  `group_by()` with `summarize()` and use the `arrange()` function to sort the output by mean acquisition cost.
+
+```{r}
+cars %>% 
+  group_by(Color) %>%
+summarize(mean = mean(VehBCost)) %>%
+  arrange(desc(mean)) 
+```
+
+18\. How many vehicles were red and have fewer than 30,000 miles? To determine the column that corresponds to mileage (odometer reading), check the "key" corresponding to the data dictionary that you imported above.
+
+- use `filter()` and `count()` or
+- `filter()` and `tally()` or
+- `sum()`
+
+```{r}
+key
+cars %>%
+  filter(Color == "RED" & VehOdo < 30000) %>%
+  count()
+```
+
+19\. How many vehicles are blue or red? 
+
+- use `filter()` and `count()` or
+- `filter()` and `tally()` or
+- `sum()`
+```{r}
+cars %>% 
+  filter(Color == "BLUE" | Color == "RED") %>%
+  count()
+```
+
+
+20\. Select all columns in "cars" where the column names starts with "Veh" (using `select()` and `starts_with()`. Then, use `colMeans()` to summarize across these columns.
+
+```{r}
+cars %>%
+  select(starts_with("Veh")) %>%
+  colMeans()
+```
+
+21\. Using "cars", create a new binary (TRUEs and FALSEs) column to indicate if the car has an automatic transmission. Call the new column "is_automatic".
+
+```{r}
+cars <- cars %>% 
+  mutate(is_automatic = (Transmission == "AUTOMATIC"))
+```
+
+22\. What is the average (mean) vehicle odometer reading for cars that are both RED and NISSANs? How does this compare with vehicles that do NOT fit this criteria?
+
+```{r}
+mean_redandnissan <- cars %>%
+  filter(Color == "RED" & Make == "NISSAN") %>%
+  summarize(mean = mean(VehOdo)) %>% 
+  pull()
+mean_notredandnissan <- cars %>%
+  filter(Color != "RED" | Make != "NISSAN") %>%
+  summarize(mean = mean(VehOdo)) %>%
+  pull()
+
+# The average(mean) of the vehicle odometer for cars that are both RED and NISSANS is 75117.32 
+# and the mean for the vehicles that do not fit this criteria is 70324.34
+```
+
+23\. Among red Nissans, what is the distribution of vehicle ages? To do this describe the distribution by evaluating the number of cars by vehicle age. Also, plot the distribution of vehicle with `hist()` function. Note: You have not been asked to use this function before, so first explore the help page of this function to learn the arguments needed.
+
+```{r}
+red_nissan <- cars %>% filter(Color == "RED" & Make == "NISSAN")
+red_nissan %>%
+  group_by(VehicleAge) %>%
+  count()
+hist(cars$VehicleAge)
+```
+
+24\. How many vehicles (using `filter()` or `sum()` ) are made by Chrysler or Nissan and are white or silver?
+
+```{r}
+sum((cars$Make == "CHRYSLER" | cars$Make == "NISSAN") & (cars$Color == "WHITE" | cars$Color == "SILVER"))
+```
+
+25\. Make a boxplot (`boxplot()`) that looks at vehicle age ("VehicleAge") on the x-axis and odometer reading ("VehOdo") on the y-axis. Note: You have not been asked to use this function before, so first explore the help page of this function to learn the arguments needed.
+
+```{r}
+boxplot(cars %>% pull(VehOdo) ~ cars %>% pull(VehicleAge))
+```
+
+26\. Knit your document into a PDF report.
+
+You use the knit button to do this. Make sure all your code is working first!

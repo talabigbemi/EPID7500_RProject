@@ -1,0 +1,215 @@
+---
+title: "Homework #2"
+author: "Gbemisola Talabi"
+output: pdf_document
+date: "11 October 2022"
+---
+
+### **Instructions**
+
+1. Please submit your knitted `.pdf` file to the assignment drop box on eLC. If you are still having trouble knitting your file you can submit your `.Rmd` file.
+
+2. The assignment is due October 11, 2022 by 7:00pm EST. This assignment will be graded for accuracy. Please reach out to us if you need help before this time! 
+
+3. Please add your name as "author" to the YAML header above.
+
+4. Below each question is a `r` code chunk that can be used to explore the question. Use the space below the code chunk to directly answer the question.
+
+rm(list=ls(all=T)) 
+
+```{r initiatePackages, message=FALSE}
+## you can add more, or change...
+library(tidyverse)
+library(readr)
+library(dplyr)
+```
+
+### **Problem Set**
+
+1\. Import the dataset `tb.rds` into R. Once you get the file, read the dataset in using `read_rds()` and assign it the name "tb". This data set is a time series of tuberculosis incidence (i.e., number of TB cases per 100,000 population per year).
+
+```{r}
+tb <- read_rds("../data/tb.rds")
+```
+
+2\. Run the `colnames()` function to take a look at the dataset column names. You should see that the first column name does not represent the variable well. Rename the first column of "tb" to "country" using the `rename()` function in `dplyr`.  Remember back ticks can be used for non-character column names
+
+```{r}
+colnames(tb)
+tb <- rename(tb, country = "TB incidence, all forms (per 100 000 population per year)")
+```
+
+3\. Use the `pct_complete()` function in the `naniar` package to determine the percent missing data in "tb". You might need to load and install `naniar`!
+
+```{r}
+library(naniar)
+
+naniar::pct_complete(tb)
+```
+
+4\. How many countries that have a complete record in "tb" across all years? Just look at the output here, don't reassign it. **Hint:** look for complete records by dropping all NAs from the dataset using `drop_na()`.
+
+```{r}
+drop_na(tb)
+nrow(tb)
+#208 countries
+```
+
+5\. How many country names begin with the letter "D"?
+
+```{r}
+country_d <- tb %>% filter(stringr::str_starts(country, "D"))
+count(country_d)
+# Four countries begins with the letter "D"
+```
+
+
+6\. Subset the "tb" dataset to only keep the first 10 rows. Call the new data frame "tb_small".
+
+```{r}
+tb_small <- tb[ c(1:10), ]
+```
+
+7\. Bring an additional dataset into R. The dataset is csv file named "WorldBank_population.csv". This is the total estimated population size by country and year. Assign this dataset to "pop".
+
+```{r}
+pop <- read_csv("../data/WorldBank_population.csv")
+```
+
+8\. Rename the first column in "pop" to "country". Use the `rename()` function. Don't forget to reassign the renamed data to "pop".
+
+```{r}
+pop <- rename(pop, country = "Country Name")
+```
+
+9\. Subset the "pop" data to only keep the first 10 rows. Call the new data frame "pop_small".
+
+```{r}
+pop_small <- pop[ c(1:10), ]
+```
+
+10\. Our goal is to estimate the number of TB cases each year based on "pop_small" and "tb_small" datasets.  Therefore, we need to evaluate which countries are overlapping and modify some strings if needed.  First, determine which countries do not match or might need cleaning using `setdiff()`. How many countries do not match?  Which countries need to be recoded in order to match across the two datasets?
+
+```{r}
+tb_country <- tb_small %>% pull(country)
+pop_country <- pop_small %>% pull(country)
+setdiff(tb_country, pop_country)
+setdiff(pop_country, tb_country)
+# Four countries in both datasets do not match each other.
+# andorra to Andorra, Antigua & Barbuda to Antigua and Barbuda needs to be recoded. 
+```
+
+11\. Use the `recode()` function to match "pop_small" country names to "tb_small" country names. Then use `setdiff()` again to check it worked.
+
+```{r}
+pop_small <- pop_small %>% 
+  mutate(country = recode(country, "andorra" = "Andorra"))
+pop_small <- pop_small %>% 
+  mutate(country = recode(country, "Antigua & Barbuda" = "Antigua and Barbuda"))
+tb_country <- tb_small %>% pull(country)
+pop_country <- pop_small %>% pull(country)
+setdiff(tb_country, pop_country)
+setdiff(pop_country, tb_country)
+```
+
+12\. Reshape the "tb_small" data to long form. 
+
+- There should be a column for country ("country"), a column for year ("year"), and a column for the TB incidence value ("TB_incidence"). 
+- Use `pivot_longer()`. 
+- You should pivot all columns except "country". 
+- **Hint:** listing `!COLUMN_NAME` or `-COLUMN_NAME` means everything except the column you have named. 
+- Assign the reshaped data to "long_tb".
+
+```{r}
+long_tb <- tb_small %>% pivot_longer(!country, 
+                                     names_to = "year",
+                                     values_to = "TB_incidence")
+head(long_tb)
+```
+
+13\. What is the `typeof()` for the variable `year` in the "long_tb" dataset? If it's not an integer, turn it into integer form with `as.integer()`. Check to make sure it worked.
+
+```{r}
+typeof(long_tb$year)
+long_tb <- long_tb %>%
+  mutate(year = as.integer(year))
+typeof(long_tb$year)
+
+```
+
+14\. Subset "long_tb"  based on years 1995-2005, including 1995 and 2005 and call this "long_tb_sub" using `&` or the `between()` function. Confirm your filtering worked by looking at the range of "year". .
+
+```{r}
+long_tb_sub <- filter(long_tb, between(year, 1995, 2005))
+range(long_tb_sub$year)
+```
+
+
+15\. Reshape the "pop_small" data to long form. 
+
+- There should be a column for country ("country"), a column for year ("year"), and a column for the population value ("population"). 
+-  Use `select()` to remove columns that are no longer needed including "Country Code", "Indicator Name", and "Indicator Code"
+- Use `pivot_longer()` to pivot year columns. 
+- Assign the reshaped data to "long_pop".
+
+```{r}
+pop_small <- select(pop_small, -c("Country Code", "Indicator Name", "Indicator Code")) 
+long_pop <- pop_small %>% pivot_longer(!country, 
+                                 names_to = "year",
+                                 values_to = "population")
+head(long_pop)
+```
+
+16\. What is the `typeof()` for the variable `year`in the "long_pop" dataset? If it's not an integer, turn it into integer form with `as.integer()`. Check to make sure it worked.
+
+```{r}
+typeof(long_pop$year)
+long_pop <- long_pop %>%
+  mutate(year = as.integer(year))
+typeof(long_pop$year)
+```
+
+17\. Subset "long_pop"  based on years 1995-2005, including 1995 and 2005 and call this "long_pop_sub". Confirm your filtering worked by looking at the range of "year". 
+
+```{r}
+long_pop_sub <- filter(long_pop, between(year, 1995, 2005))
+range(long_pop_sub$year)
+```
+
+
+18\. Using "long_tb_sub" and "long_pop_sub", `inner_join()` the two datasets by "country" and "year". Call this new dataset "joined".
+
+```{r}
+joined <- inner_join(long_tb_sub, long_pop_sub, by = c("country", "year"))
+head(joined)
+```
+
+19\. How many unique countries are in the "joined" dataset?  Is this as expected given the number of countries that didn't match above? How many unique countries would we have had if we did `right_join(long_tb_sub, long_pop_sub, by=c("country", "year"))`, why?
+
+```{r}
+rightjoin <- right_join(long_tb_sub, long_pop_sub, by=c("country", "year"))
+head(rightjoin)
+# eight unique countries are in the joined dataset.
+#yes, it is as expected because only countries that match in both datasets are kept.
+#we have 10 unique countries after running 'right_join' 
+#because the 'right_join' function ensures all rows(countries) in the long_pop_sub dataset are kept.
+```
+
+
+20\. Calculate the number of TB cases for each country and year in the dataset "joined" by multiplying the size of the population by TB incidence divided by 100,000. Name this new variable "TB_cases"
+
+```{r}
+joined <- joined %>% mutate(TB_cases = population * TB_incidence / 100000)
+head(joined)
+```
+
+21\. Make a scatter plot the number of TB cases over time in Afghanistan
+
+```{r}
+Afghan_country <- filter(joined, country == "Afghanistan")
+library(ggplot2)
+plot(x = Afghan_country$year, y = Afghan_country$TB_cases)
+ 
+```
+
+

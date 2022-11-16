@@ -1,0 +1,316 @@
+---
+title: 'Homework #3'
+author: "Gbemisola Talabi"
+date: "1 November 2022"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+### **Instructions**
+
+1. Please submit your knitted `.pdf` file to the assignment drop box on eLC. If you are still having trouble knitting your file you can submit your `.Rmd` file.
+
+2. The assignment is due November 1, 2022 by 7:00pm EST. This assignment will be graded for accuracy. Please reach out to us if you need help before this time! 
+
+3. Please add your name as "author" to the YAML header above.
+
+4. Below each question is a `r` code chunk that can be used to explore the question. Use the space below the code chunk to directly answer the question.
+ 
+
+```{r initiatePackages, message=FALSE}
+## you can add more, or change...
+rm(list=ls(all=T))
+
+library(tidyverse)
+library(RColorBrewer)
+library(naniar)
+```
+
+### **Problem Set**
+
+1\. Import the dataset from the filename "serodata.rds" from eLC. Assign it to `sero` object and use `glimpse()` to check out the data. Each row is a different individual whom we serological data: `IgG_concentration` represents virus-specific IgG antibody concentrations from a fully immunizing infection based on an enzyme immunoassay; `age` is age in years; `sex` is sex of the individual; and `slum` characterizes the residence of the individual. How many rows, how many columns, what are the data types of the variables? Check the data for missingness using `gg_miss_var()` from the `naniar` package.
+
+```{r}
+sero <- read_rds("../data/serodata.rds")
+glimpse(sero)
+naniar::gg_miss_var(sero)
+# 651 rows, 4 columns, IgG_concentration and age have numeric or double variables
+#gender and slum have character variables
+```
+
+
+2\. Create a new variable called `log_IgG_concentration` which is the log10 of `IgG_concentration`
+  - hint: use `log10(IgG_concentration)` nested inside `mutate()` and make sure reassign it back to `sero`
+
+```{r}
+sero <- sero %>% mutate(log_IgG_concentration = log10(IgG_concentration))
+head(sero)
+```
+
+
+3\. Use `ggplot2` to create a histogram of `IgG_concentration` using `stat_bin()`. Describe the distribution of the data based on the histogram. What do we learn about the distribution of `IgG_concentration`
+
+```{r}
+ggplot(sero) + 
+  stat_bin(aes(x= IgG_concentration))
+#The distribution is right or positively skewed and unimodal. 
+``` 
+
+
+4\. Create a histogram of `log_IgG_concentration` using `stat_bin()`. IgG antibodies above a certain threshold generally represent immunity in an individual. If you were to split this bimodal distribution into two normal distributions where would you draw the threshold?
+
+```{r}
+ggplot(sero) + 
+  stat_bin(aes(x= log_IgG_concentration))
+#the threshold will be drawn at 1 to split this bimodal distribution into two normal distributions. 
+```
+
+
+5a\. Create a new variable named `sero_status` as a binary variable in which observations below the threshold are defined as 0 and observations above or equal to the threshold are defined as 1. Make sure to reassign it back to `sero`
+  - use the `log_IgG_concentration` threshold of 1.0
+
+```{r}
+attach(sero)
+sero$sero_status[log_IgG_concentration< 1] <- 0 
+sero$sero_status[log_IgG_concentration>=1] <- 1
+
+```
+
+5b.\ Output the min and max of `log_IgG_concentration` by `sero_status` to make sure the code you used in #5a worked correctly.
+  - hint: use `group_by()` and `summarise()` creating a minimum and maximum variable using `min()` and `max()`
+
+```{r}
+sero %>% 
+  group_by(sero_status) %>%
+  summarise(min(log_IgG_concentration), max(log_IgG_concentration))
+```
+
+
+6a\. Create a new factor variable named `slum_binary` as a binary variable in which observations with `slum` and `mixed` values (from the `slum` variables) are defined as `slum/mixed` and observations with the `Non slum` value remain defined as `Non slum`. Make sure to reassign it back to `sero`
+
+```{r}
+sero <- sero %>%
+  mutate(slum = factor(slum,
+                       levels = c("Slum", "Mixed", "Non slum")))
+levels(pull(sero, slum))
+
+sero <- sero %>%
+  mutate(slum_binary = (recode(slum,
+                       "Slum" = "slum/mixed",
+                       "Mixed" = "slum/mixed",
+                       "Non slum" = "Non slum")))
+                    
+```
+
+6b\. Output a table of `slum` and `slum_binary` to make sure the code you used in #6a worked correctly.
+  - hint: use `count(slum, slum_binary)`
+
+```{r}
+sero %>%
+  mutate(slum_binary = (recode(slum,
+                       "Slum" = "slum/mixed",
+                       "Mixed" = "slum/mixed",
+                       "Non slum" = "Non slum"))) %>% 
+  count(slum, slum_binary)
+```
+
+
+7\. Now let's summarize the `sero` dataset: Calculate the proportion of observations where `sero_status` is equal to 1 grouped by `age` and `slum_binary` variables. Call the new variable `prop` & assign the new tibble to `sero_group`. Check that the number of rows in the new datset `sero_group` is 30 using `nrow()`
+  - hint: you will need to use `group_by()` and then `summarise(prop = ...)` to create a new variable `prop`
+
+```{r}
+sero_group <- sero %>% 
+  group_by(age, slum_binary) %>%
+  summarise(prop = sum(sero_status == 1)/n(), 
+            .groups ="drop")
+
+nrow(sero_group)
+```
+
+
+8\. Using the `sero_group` dataset, create a scatter plot of `age` (x axis) and `prop` (y axis) and then add fit a line using LOESS method.
+   - change the LOESS fit line color and fit line ribbon fill to the color HEX code "#d53e4f"
+   - change the y axis label to "proportion seropositive" using `labs()`
+   - change the x axis label to "age (years)" using `labs()`
+
+```{r}
+ggplot(sero_group, aes(x=age, y=prop)) +
+  geom_point() + 
+  stat_smooth(method="loess", col="#d53e4f", fill="#d53e4f") +
+  labs(x = "proportion seropositive",
+       y = "age(years)")
+
+```
+
+
+9\. Using the `sero_group` dataset, create a scatter plot of `age` (x axis) and `prop` (y axis) and then add fit a line using GAM method.
+  - use `formula = y ~ s(x, bs="cr")`
+  - remove the 95% CI ribbon from the GAM fit
+  - use built in ggplot theme `theme_bw()`
+
+```{r}
+
+ggplot(sero_group, aes(x=age, y=prop)) +
+  geom_point() + 
+  stat_smooth(method="gam", se =FALSE, formula = y ~ s(x, bs="cr")) +
+  theme_bw()
+                
+```
+
+
+10\. Using the `sero_group` dataset, create a scatter plot of `age` (x axis) and `prop` (y axis) grouped by `slum_binary` and then add a fit line using GAM method also for each value of the `slum_binary` variable. 
+  - hint: use `color=slum_binary` and `fill=slum_binary` as mapped aesthetics
+  - use the RColorBrewer color palette "Set2" to for both the colors (point and fit line) and the fills (95% CI ribbon). 
+
+```{r}
+ ggplot(sero_group, aes(x=age, y=prop, col=slum_binary, fill=slum_binary)) +
+  geom_point() + 
+  stat_smooth(method="gam", formula = y ~ x) +
+  scale_color_brewer(palette = "Set2") +
+scale_fill_brewer(palette = "Set2")
+
+```
+
+
+11\. Zoom in on the plot from #10 for ages 10 to 15 using `coord_cartesian()`
+
+```{r}
+ggplot(sero_group, aes(x=age, y=prop, col=slum_binary, fill=slum_binary)) +
+  geom_point() + 
+  stat_smooth(method="gam", formula = y ~ x) +
+  scale_color_brewer(palette = "Set2") +
+scale_fill_brewer(palette = "Set2") +
+  coord_cartesian(xlim = c(10, 15))
+  
+
+```
+
+
+12\. Make the plot from #10 easier to read using `facet_wrap()` to create a plot for each `slum_binary` value
+
+```{r}
+ggplot(sero_group, aes(x=age, y=prop, col=slum_binary, fill=slum_binary)) +
+  geom_point() + 
+  stat_smooth(method="gam", formula = y ~ x) +
+  scale_color_brewer(palette = "Set2") +
+scale_fill_brewer(palette = "Set2") +
+  facet_wrap(. ~slum_binary)
+```
+
+
+13\. Using the `sero` dataset, create a scatter plot of `log_IgG_concentration` (y axis) and `age` (x axis) using `geom_jitter()` where the alpha attribute is `geom_jitter()` is set to 0.5
+
+```{r}
+ggplot(sero, aes(x=age, y=log_IgG_concentration)) +
+  geom_jitter(alpha = 0.5)
+```
+
+
+14\. Add an additional plot layer to #13 of `stat_sum()` to count the number of observations at each `age` and then map the count onto size as the point area. 
+
+```{r}
+ggplot(sero, aes(x=age, y=log_IgG_concentration)) +
+  stat_sum() +
+  geom_jitter(alpha = 0.5)
+  
+```
+
+
+15\. Using the `sero` dataset, plot the mean `log_IgG_concentration` (y axis) as points and 1 standard deviation plus or minus the mean `log_IgG_concentration` as vertical lines for each age in years (x axis).
+  - hint: `stat_summary(fun.data = mean_sdl)` 
+  - hint: use the `mult` argument to specify 1 standard deviation
+  - change the x axis ticks so that all ages 1 though 15 are displayed using `breaks()`
+
+```{r}
+ggplot(sero, aes(x = age, y = log_IgG_concentration)) +
+  stat_summary(fun.data = mean_sdl, fun.args = list(mult=1)) +
+    scale_x_continuous(breaks=seq(1:15))
+```
+
+
+16\.  Using the `sero` dataset, evaluate whether `log_IgG_concentration` is normally distributed among observations in which `sero_status` is equal to 1. Answer below the R chunk if it appears to be normally distributed?
+  - hint: subset data using `filter()` to only include samples where `sero_status` is equal to 1 then use `stat_function()`
+
+```{r}
+sero_filter <- filter(sero, sero_status == 1)
+ggplot(sero_filter, aes(x=log_IgG_concentration)) +
+  geom_histogram(aes(y = ..density..)) +
+  stat_function(fun = dnorm, color="red", args = list(mean = mean(sero_filter$log_IgG_concentration),
+                                                      sd = sd(sero_filter$log_IgG_concentration)))
+# log_IgG_concentration appears to be normally distributed
+```
+
+
+17\. Using the `sero` dataset, compute the correlation between the `age` and `log_IgG_concentration` variables. What does this tell you about the relationship between the two variables?
+
+```{r}
+x_age <- sero %>% pull(age)
+y_log_IgG_concentration <- sero %>% pull(log_IgG_concentration)
+cor(x_age, y_log_IgG_concentration)
+# r= 0.49 indicates a positive weak correlation between age and log_IgG_concentration. 
+```
+
+
+18\. Using the `sero` dataset, perform a t-test to determine if there is evidence of a difference between the mean `log_IgG_concentration` and 2.0.  Is this a one or two sample t-test?  Interpret the results.
+
+```{r}
+t.test(sero$log_IgG_concentration, mu = 2)
+# it is a one sample t-test, we reject the null hypothesis(t = -24.82, d.f =650, p<0.01) that the mean
+#log_IgG_concentration is equal to 2, given alpha 0.05.
+```
+
+
+19\. Using `sero` dataset, draw a box plot of `log_IgG_concentration` for the two different values in `slum_binary`.
+
+```{r}
+sero %>% 
+  ggplot(aes(x = slum_binary, y = log_IgG_concentration)) +
+           geom_boxplot()
+```
+
+
+20\.  Using the `sero` dataset, perform a t-test to determine if there is evidence of a difference between the mean `log_IgG_concentration` among individuals with residence in `slum/mixed` and individuals with residence in `Non slum` per the `slum_binary` variable. Is this a one or two sample t-test?  Interpret the results.
+
+```{r}
+slumone <- sero %>% filter(slum_binary == "slum/mixed") %>% pull(log_IgG_concentration)
+slumtwo <- sero %>% filter(slum_binary == "Non slum") %>% pull(log_IgG_concentration)
+t.test(slumone, slumtwo)
+# this is a two-sample t-test, we fail to reject the null hypothesis(t=0.460, d.f= 317.44, p=0.65) that 
+# the difference in the mean log_IgG_conentration among individuals with residence in slum/mixed and 
+# individuals with residence in Non slum is 0.
+```
+
+
+21\. Using the `sero` dataset, fit a linear regression model with `log_IgG_concentration` as the dependent variable (outcome) and `age`, `gender`, and `slum_binary` as independent variables (covariates). Save the model fit in an object called "lmfit_sero" and display the summary table. Interpret the results.
+
+```{r}
+lmfit_sero <- glm(log_IgG_concentration ~ age + gender + slum_binary, data = sero)
+summary(lmfit_sero)
+#log_IgG_concentration decreases with increasing age.
+# we found a significant relationship between log_IgG_concentration and age(p<0.01).
+# we found an insignificant relationship between log_IgG_concentration and gender(p = 0.22)
+# we found an insignificant relationship between log_IgG_concentration and slum_binary(p=0.55)
+```
+
+
+22\. Using the `sero` dataset, fit a logistic regression model with `sero_status` as the dependent variable (outcome) and `age`, `gender`, and `slum_binary` as independent variables (covariates). Save the model fit in an object called "logfit_sero" and display the summary table. Interpret the results.
+
+```{r}
+logfit_sero <- glm(sero_status ~ age + gender + slum_binary, data = sero)
+summary(logfit_sero)
+#log_IgG_concentration increases with increasing age.
+# we found a significant relationship between sero_status and age(p<0.01).
+# we found an insignificant relationship between sero_status and gender(p = 0.31)
+# we found an insignificant relationship between sero_status and slum_binary(p=0.68)
+```
+
+
+23\. Based on the object called "logfit_sero" calculate odds ratio and 95% confidence intervals of the odds ratio for `slum_binary.`
+
+```{r}
+logfit_sero2 <- glm(sero_status ~ slum_binary, data = sero, family = binomial(link = "logit"))
+summary(logfit_sero2)
+exp(logfit_sero2$coefficients)
+```
